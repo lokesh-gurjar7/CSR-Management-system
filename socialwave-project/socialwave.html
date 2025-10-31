@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SocialWave – CSR Management</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #4f46e5;
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.3rem;
+    }
+    main {
+      padding: 1rem 2rem;
+    }
+    button {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button.danger {
+      background: #dc2626;
+    }
+    button.secondary {
+      background: #e5e7eb;
+      color: black;
+    }
+    .card {
+      background: white;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 0.4rem;
+      margin: 0.2rem 0 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .hidden { display: none; }
+    .tabs button {
+      background: white;
+      color: black;
+      margin-right: 0.5rem;
+    }
+    .tabs button.active {
+      background: #4f46e5;
+      color: white;
+    }
+    .login-box {
+      max-width: 320px;
+      background: white;
+      margin: 8rem auto;
+      padding: 1.5rem;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .login-box h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="login-page">
+    <div class="login-box">
+      <h2>SocialWave Login</h2>
+      <input id="username" placeholder="Username" />
+      <input id="password" type="password" placeholder="Password" />
+      <button onclick="login()">Login</button>
+      <p id="login-error" style="color:red; text-align:center; display:none;">Invalid credentials</p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1>🌊 SocialWave – CSR Management</h1>
+      <div>
+        <div class="tabs" style="display:inline-block;">
+          <button id="tab-projects" class="active" onclick="showTab('projects')">Projects</button>
+          <button id="tab-volunteers" onclick="showTab('volunteers')">Volunteers</button>
+        </div>
+        <button class="secondary" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Projects -->
+      <section id="projects-section">
+        <div class="card">
+          <h3>Add Project</h3>
+          <input id="p-title" placeholder="Title" />
+          <textarea id="p-desc" placeholder="Description"></textarea>
+          <div class="grid">
+            <input id="p-start" type="date" />
+            <input id="p-end" type="date" />
+          </div>
+          <button onclick="addProject()">Add Project</button>
+        </div>
+        <div id="projects-list"></div>
+      </section>
+
+      <!-- Volunteers -->
+      <section id="volunteers-section" class="hidden">
+        <div class="card">
+          <h3>Add Volunteer</h3>
+          <input id="v-name" placeholder="Name" />
+          <input id="v-email" placeholder="Email" />
+          <input id="v-phone" placeholder="Phone" />
+          <select id="v-project">
+            <option value="">Assign to Project</option>
+          </select>
+          <button onclick="addVolunteer()">Add Volunteer</button>
+        </div>
+        <div id="volunteers-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const userKey = "socialwave_user";
+    const projectsKey = "socialwave_projects";
+    const volunteersKey = "socialwave_volunteers";
+
+    const loginPage = document.getElementById("login-page");
+    const app = document.getElementById("app");
+
+    let projects = JSON.parse(localStorage.getItem(projectsKey) || "[]");
+    let volunteers = JSON.parse(localStorage.getItem(volunteersKey) || "[]");
+
+    // ===== Login =====
+    function login() {
+      const u = document.getElementById("username").value.trim();
+      const p = document.getElementById("password").value.trim();
+      if (u === "admin" && p === "admin") {
+        localStorage.setItem(userKey, JSON.stringify({ username: u }));
+        loginPage.classList.add("hidden");
+        app.classList.remove("hidden");
+        render();
+      } else {
+        document.getElementById("login-error").style.display = "block";
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem(userKey);
+      app.classList.add("hidden");
+      loginPage.classList.remove("hidden");
+    }
+
+    if (localStorage.getItem(userKey)) {
+      loginPage.classList.add("hidden");
+      app.classList.remove("hidden");
+      render();
+    }
+
+    // ===== Tabs =====
+    function showTab(tab) {
+      document.getElementById("projects-section").classList.add("hidden");
+      document.getElementById("volunteers-section").classList.add("hidden");
+      document.getElementById("tab-projects").classList.remove("active");
+      document.getElementById("tab-volunteers").classList.remove("active");
+      if (tab === "projects") {
+        document.getElementById("projects-section").classList.remove("hidden");
+        document.getElementById("tab-projects").classList.add("active");
+      } else {
+        document.getElementById("volunteers-section").classList.remove("hidden");
+        document.getElementById("tab-volunteers").classList.add("active");
+      }
+    }
+
+    // ===== CRUD: Projects =====
+    function addProject() {
+      const title = document.getElementById("p-title").value.trim();
+      const desc = document.getElementById("p-desc").value.trim();
+      if (!title) return alert("Title required!");
+      const proj = {
+        id: Date.now(),
+        title,
+        desc,
+        start: document.getElementById("p-start").value,
+        end: document.getElementById("p-end").value,
+      };
+      projects.push(proj);
+      localStorage.setItem(projectsKey, JSON.stringify(projects));
+      renderProjects();
+      updateProjectDropdown();
+      document.getElementById("p-title").value = "";
+      document.getElementById("p-desc").value = "";
+    }
+
+    function deleteProject(id) {
+      if (!confirm("Delete this project?")) return;
+      projects = projects.filter(p => p.id !== id);
+      volunteers = volunteers.map(v => v.projectId === id ? { ...v, projectId: "" } : v);
+      localStorage.setItem(projectsKey, JSON.stringify(projects));
+      localStorage.setItem(volunteersKey, JSON.stringify(volunteers));
+      render();
+    }
+
+    // ===== CRUD: Volunteers =====
+    function addVolunteer() {
+      const name = document.getElementById("v-name").value.trim();
+      if (!name) return alert("Name required!");
+      const v = {
+        id: Date.now(),
+        name,
+        email: document.getElementById("v-email").value,
+        phone: document.getElementById("v-phone").value,
+        projectId: document.getElementById("v-project").value
+      };
+      volunteers.push(v);
+      localStorage.setItem(volunteersKey, JSON.stringify(volunteers));
+      renderVolunteers();
+      document.getElementById("v-name").value = "";
+      document.getElementById("v-email").value = "";
+      document.getElementById("v-phone").value = "";
+    }
+
+    function deleteVolunteer(id) {
+      if (!confirm("Delete volunteer?")) return;
+      volunteers = volunteers.filter(v => v.id !== id);
+      localStorage.setItem(volunteersKey, JSON.stringify(volunteers));
+      renderVolunteers();
+    }
+
+    // ===== Render =====
+    function render() {
+      renderProjects();
+      renderVolunteers();
+      updateProjectDropdown();
+    }
+
+    function renderProjects() {
+      const container = document.getElementById("projects-list");
+      container.innerHTML = "";
+      projects.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `<strong>${p.title}</strong><br>${p.desc || ""}<br><small>${p.start || ""} → ${p.end || ""}</small><br>
+          <button class='danger' onclick='deleteProject(${p.id})'>Delete</button>`;
+        container.appendChild(div);
+      });
+    }
+
+    function renderVolunteers() {
+      const container = document.getElementById("volunteers-list");
+      container.innerHTML = "";
+      volunteers.forEach(v => {
+        const proj = projects.find(p => p.id == v.projectId);
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `<strong>${v.name}</strong><br>${v.email || ""} | ${v.phone || ""}<br>
+          <small>Project: ${proj ? proj.title : "None"}</small><br>
+          <button class='danger' onclick='deleteVolunteer(${v.id})'>Delete</button>`;
+        container.appendChild(div);
+      });
+    }
+
+    function updateProjectDropdown() {
+      const select = document.getElementById("v-project");
+      select.innerHTML = '<option value=\"\">Assign to Project</option>';
+      projects.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.title;
+        select.appendChild(opt);
+      });
+    }
+  </script>
+</body>
+</html>
